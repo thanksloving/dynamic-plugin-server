@@ -2,6 +2,7 @@ package pluggable
 
 import (
 	"fmt"
+	"github.com/bytedance/sonic"
 	"log"
 	"reflect"
 	"sync"
@@ -62,24 +63,34 @@ func (m *PluginMeta) resolveType(t reflect.Type, isInput bool) (*descriptorpb.De
 	desc := &descriptorpb.DescriptorProto{
 		Name: protoV2.String(t.Name()),
 	}
+	optional := false
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
+		optional = true
 	}
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		if field.Tag.Get("name") == "" {
-			return nil, fmt.Errorf("param field %s must have tag name", field.Name)
-		}
 		desc.Field = append(desc.Field, &descriptorpb.FieldDescriptorProto{
-			Name:   protoV2.String(field.Tag.Get("name")),
+			Name:   protoV2.String(field.Name),
 			Number: protoV2.Int32(int32(i + 1)),
 			Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
 			Type:   m.getFieldType(field.Type),
 		})
+		item := Item{
+			Name: field.Name,
+			Type: field.Type.String(),
+			Desc: field.Tag.Get("desc"),
+		}
 		if isInput {
-			m.Inputs = append(m.Inputs, Input{})
+			var options []any
+			if optionStr := field.Tag.Get("options"); optionStr != "" {
+				if err := sonic.Unmarshal([]byte(optionStr), &options); err != nil {
+					return nil, err
+				}
+			}
+			m.Inputs = append(m.Inputs, Input{Item: item, Optional: optional, Options: options})
 		} else {
-			m.Outputs = append(m.Outputs, Output{})
+			m.Outputs = append(m.Outputs, Output{Item: item})
 		}
 	}
 
@@ -103,7 +114,7 @@ func (m *PluginMeta) getFieldType(t reflect.Type) *descriptorpb.FieldDescriptorP
 	case reflect.Uint64:
 		return descriptorpb.FieldDescriptorProto_TYPE_UINT64.Enum()
 	default:
-		// add other types and nested types
+		// TODO add other types and nested types
 		return descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum()
 	}
 }

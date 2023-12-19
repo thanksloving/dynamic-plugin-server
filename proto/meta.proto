@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+option go_package = "./pb";
+
+message MetaRequest {
+  optional string name = 1;
+  optional string namespace = 2;
+  optional int32 page = 3;
+  optional int32 page_size = 4;
+}
+
+message MetaResponse {
+  int32 total = 1;
+  string version = 2;
+  repeated PluginMeta plugins = 3;
+}
+
+message PluginMeta {
+  string name = 1;
+  string namespace = 2;
+  string desc = 3;
+  message Input {
+    string name = 1;
+    string type = 2;
+    string desc = 3;
+    bool required = 4;
+    repeated google.protobuf.Any options = 5;
+  }
+  message Output {
+    string name = 1;
+    string type = 2;
+    string desc = 3;
+  }
+  repeated Input input = 4;
+  repeated Output output = 5;
+  optional int32 timeout = 6;
+  optional int32 cache_time = 7;
+}
+
+service MetaService {
+  rpc GetPluginMetaList (MetaRequest) returns (MetaResponse) {}
+}

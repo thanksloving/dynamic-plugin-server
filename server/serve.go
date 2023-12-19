@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 	"net"
 	"strings"
 
@@ -21,6 +22,7 @@ type (
 	dynamicService struct {
 		methods map[string]protoreflect.MethodDescriptor
 		server  *grpc.Server
+		pb.MetaServiceServer
 	}
 
 	DynamicService interface {
@@ -34,10 +36,13 @@ func NewDynamicService(fileDescriptions []protoreflect.ServiceDescriptor, option
 	}
 
 	server := grpc.NewServer(options...)
+
 	descList := ds.resolveServices(fileDescriptions)
 	for _, serviceDesc := range descList {
 		server.RegisterService(serviceDesc, ds)
 	}
+	// register meta service
+	pb.RegisterMetaServiceServer(server, ds)
 	reflection.Register(server)
 	ds.server = server
 	return ds
@@ -50,7 +55,7 @@ func (ds *dynamicService) Start(listener net.Listener) error {
 func (ds *dynamicService) resolveServices(serviceDescriptions []protoreflect.ServiceDescriptor) []*grpc.ServiceDesc {
 	var serviceDescList []*grpc.ServiceDesc
 	for _, sd := range serviceDescriptions {
-		gsd := grpc.ServiceDesc{ServiceName: string(sd.FullName()), HandlerType: (*interface{})(nil)}
+		gsd := grpc.ServiceDesc{ServiceName: string(sd.FullName()), HandlerType: (*any)(nil)}
 		for idx := 0; idx < sd.Methods().Len(); idx++ {
 			method := sd.Methods().Get(idx)
 			gsd.Methods = append(gsd.Methods, grpc.MethodDesc{MethodName: string(method.FullName()), Handler: ds.handler})
@@ -64,7 +69,7 @@ func (ds *dynamicService) resolveServices(serviceDescriptions []protoreflect.Ser
 
 func (ds *dynamicService) getMethodDesc(ctx context.Context) (method protoreflect.MethodDescriptor, serviceName string, pluginName string, err error) {
 	stream := grpc.ServerTransportStreamFromContext(ctx)
-	//eg. stream method:/plugin_center.Default/plugin_center.Default.SayHello
+	//e.g. stream method:/plugin_center.Default/plugin_center.Default.SayHello
 	if idx := strings.LastIndex(stream.Method(), "/"); idx != -1 {
 		key := stream.Method()[idx+1:]
 		if methods := strings.Split(key, "."); len(methods) == 3 {
@@ -79,14 +84,10 @@ func (ds *dynamicService) getMethodDesc(ctx context.Context) (method protoreflec
 	return
 }
 
-func (ds *dynamicService) handler(_ interface{}, ctx context.Context, dec func(interface{}) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
+func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
 	method, namespace, pluginName, err := ds.getMethodDesc(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if namespace == "MetaService" {
-		return ds.Meta(ctx, pluginName)
 	}
 
 	input := dynamicpb.NewMessage(method.Input())

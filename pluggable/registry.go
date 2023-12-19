@@ -29,9 +29,6 @@ func Register[I, O any](pluginName string, p Pluggable[I, O], opts ...Option) er
 	instance.lock.Lock()
 	defer instance.lock.Unlock()
 
-	inputType := getGenericType[I]()
-	outputType := getGenericType[O]()
-
 	meta := &PluginMeta{
 		Namespace: DefaultNamespace,
 		Name:      pluginName,
@@ -44,6 +41,9 @@ func Register[I, O any](pluginName string, p Pluggable[I, O], opts ...Option) er
 	if _, ok := instance.store[key]; ok {
 		return errors.Errorf("plugin %s already exists", key)
 	}
+
+	inputType := getGenericType[I]()
+	outputType := getGenericType[O]()
 
 	err := meta.parse(inputType, outputType)
 	if err != nil {

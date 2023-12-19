@@ -2,14 +2,10 @@ package server
 
 import (
 	"context"
-
-	"github.com/pkg/errors"
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 )
 
-// Meta TODO add version: local timestamp
-func (ds *dynamicService) Meta(_ context.Context, methodName string) (interface{}, error) {
-	switch methodName {
-	default:
-		return nil, errors.Errorf("unknown method %s", methodName)
-	}
+// GetPluginMetaList TODO add version: local timestamp
+func (ds *dynamicService) GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error) {
+	return nil, nil
 }

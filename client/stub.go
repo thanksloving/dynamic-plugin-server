@@ -17,7 +17,7 @@ import (
 
 type (
 	Stub interface {
-		Call(ctx context.Context, serviceName string, methodName string, input map[string]interface{}) ([]byte, error)
+		Call(ctx context.Context, serviceName string, methodName string, input map[string]any) ([]byte, error)
 	}
 
 	pluginStub struct {
@@ -35,7 +35,7 @@ func NewPluginStub(conn *grpc.ClientConn, descriptor []protoreflect.ServiceDescr
 	return ps
 }
 
-func (ps *pluginStub) Call(ctx context.Context, serviceName string, methodName string, data map[string]interface{}) ([]byte, error) {
+func (ps *pluginStub) Call(ctx context.Context, serviceName string, methodName string, data map[string]any) ([]byte, error) {
 	service := ps.services[getKey(serviceName, methodName)]
 	if service == nil {
 		return nil, errors.New("service not found")
