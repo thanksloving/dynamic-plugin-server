@@ -33,22 +33,26 @@ err := pluggable.Register[*DemoParameter, *DemoResult]("SayHello", &Demo{})
 
 3. Start the gRPC server.
 ```
-    dynamicService := server.NewDynamicService(pluggable.GetServiceDescriptors())
-	lis, err := net.Listen("tcp", ":52051")
-	if err != nil {
-		panic(err)
-	}
-	log.Infof("server listening at %v", lis.Addr())
-	if e := dynamicService.Start(lis); e != nil {
-		panic(e)
-	}
+dynamicService := server.NewDynamicService(pluggable.GetServiceDescriptors())
+lis, err := net.Listen("tcp", ":52051")
+if err != nil {
+	panic(err)
+}
+log.Infof("server listening at %v", lis.Addr())
+if e := dynamicService.Start(lis); e != nil {
+	panic(e)
+}
 ```
 
 4. Then the client can get all the plugin metainfo, and invoke any plugin :)
 ```
-    conn, err := grpc.DialContext(context.Background(), ":52051",
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
-	stub := client.NewPluginStub(conn, pluggable.GetServiceDescriptors())
-	result, err := stub.Call(context.Background(), pluggable.DefaultNamespace, "SayHello", map[string]any{"name": "plugin"})
+conn, err := grpc.DialContext(context.Background(), ":52051",
+	grpc.WithTransportCredentials(insecure.NewCredentials()),
+)
+stub := client.NewPluginStub(conn, pluggable.GetServiceDescriptors())
+result, err := stub.Call(context.Background(), pluggable.DefaultNamespace, "SayHello", map[string]any{"name": "plugin"})
 ```
+
+### TODO
+- [ ] meta info auto-generate support
+- [ ] meta info service
