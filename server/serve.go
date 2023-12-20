@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"github.com/thanksloving/dynamic-plugin-server/pb"
 	"net"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 	"github.com/thanksloving/dynamic-plugin-server/pluggable"
 )
 
@@ -110,4 +110,12 @@ func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) erro
 	}
 
 	return output, nil
+}
+
+// GetPluginMetaList get plugin meta list
+func (ds *dynamicService) GetPluginMetaList(_ context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error) {
+	if request.Name != nil && request.Namespace == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "namespace is required")
+	}
+	return pluggable.GetPluginMetaList(request)
 }

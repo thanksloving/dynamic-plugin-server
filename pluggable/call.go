@@ -7,6 +7,8 @@ import (
 
 	"github.com/bytedance/sonic"
 	"github.com/pkg/errors"
+
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 )
 
 type pluggableInfo struct {
@@ -69,4 +71,13 @@ func (p *pluggableInfo) run(ctx context.Context, param any, execute func() ([]by
 		_ = defaultCache.Set(context.Background(), cacheKey, result, cacheTime)
 	}()
 	return result, err
+}
+
+func (p *pluggableInfo) transform() *pb.PluginMeta {
+	return &pb.PluginMeta{
+		Namespace: p.meta.Namespace,
+		Name:      p.meta.Name,
+		Input:     p.meta.transformInput(),
+		Output:    p.meta.transformOutput(),
+	}
 }

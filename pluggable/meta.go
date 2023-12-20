@@ -2,15 +2,20 @@ package pluggable
 
 import (
 	"fmt"
-	"github.com/bytedance/sonic"
 	"log"
 	"reflect"
 	"sync"
 
+	"github.com/bytedance/sonic"
+	"github.com/golang/protobuf/ptypes/wrappers"
+	"github.com/samber/lo"
 	protoV2 "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
+	"google.golang.org/protobuf/types/known/anypb"
+
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 )
 
 var once sync.Once
@@ -204,4 +209,42 @@ func GetServiceDescriptors() []protoreflect.ServiceDescriptor {
 	})
 
 	return sds
+}
+
+func (m *PluginMeta) transformInput() []*pb.PluginMeta_Input {
+	return lo.Map[Input, *pb.PluginMeta_Input](m.Inputs, func(item Input, index int) *pb.PluginMeta_Input {
+		return &pb.PluginMeta_Input{
+			Name:     item.Name,
+			Type:     item.Type,
+			Desc:     item.Desc,
+			Required: !item.Optional,
+			Options: lo.Map[any, *anypb.Any](item.Options, func(item any, index int) *anypb.Any {
+				a, _ := convertInterfaceToAny(item)
+				return a
+			}),
+		}
+	})
+}
+
+func (m *PluginMeta) transformOutput() []*pb.PluginMeta_Output {
+	return lo.Map[Output, *pb.PluginMeta_Output](m.Outputs, func(item Output, index int) *pb.PluginMeta_Output {
+		return &pb.PluginMeta_Output{
+			Name: item.Name,
+			Type: item.Type,
+			Desc: item.Desc,
+		}
+	})
+}
+
+func convertInterfaceToAny(v interface{}) (*anypb.Any, error) {
+	anyValue := &anypb.Any{}
+	bytes, err := defaultCodec.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	bytesValue := &wrappers.BytesValue{
+		Value: bytes,
+	}
+	err = anypb.MarshalFrom(anyValue, bytesValue, protoV2.MarshalOptions{})
+	return anyValue, err
 }

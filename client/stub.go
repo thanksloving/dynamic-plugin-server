@@ -12,25 +12,32 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
+	"github.com/thanksloving/dynamic-plugin-server/pb"
 	"github.com/thanksloving/dynamic-plugin-server/pluggable"
 )
 
 type (
 	Stub interface {
 		Call(ctx context.Context, serviceName string, methodName string, input map[string]any) ([]byte, error)
+		GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error)
 	}
 
 	pluginStub struct {
-		services map[string]protoreflect.MethodDescriptor
-		conn     *grpc.ClientConn
+		services   map[string]protoreflect.MethodDescriptor
+		conn       *grpc.ClientConn
+		metaClient pb.MetaServiceClient
 	}
 )
 
+var _ Stub = &pluginStub{}
+
 func NewPluginStub(conn *grpc.ClientConn, descriptor []protoreflect.ServiceDescriptor) Stub {
 	ps := &pluginStub{
-		services: make(map[string]protoreflect.MethodDescriptor),
-		conn:     conn,
+		services:   make(map[string]protoreflect.MethodDescriptor),
+		conn:       conn,
+		metaClient: pb.NewMetaServiceClient(conn),
 	}
+
 	ps.Parse(descriptor)
 	return ps
 }
@@ -59,8 +66,8 @@ func (ps *pluginStub) Call(ctx context.Context, serviceName string, methodName s
 	return protojson.Marshal(output)
 }
 
-func getKey[T ~string](serviceName, methodName T) string {
-	return strings.ToUpper(fmt.Sprintf("%s:%s", serviceName, methodName))
+func (ps *pluginStub) GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error) {
+	return ps.metaClient.GetPluginMetaList(ctx, request)
 }
 
 func (ps *pluginStub) Parse(descriptors []protoreflect.ServiceDescriptor) {
@@ -72,4 +79,8 @@ func (ps *pluginStub) Parse(descriptors []protoreflect.ServiceDescriptor) {
 			log.Infof("register service for client: %s.%s", serviceName, method.Name())
 		}
 	}
+}
+
+func getKey[T ~string](serviceName, methodName T) string {
+	return strings.ToUpper(fmt.Sprintf("%s:%s", serviceName, methodName))
 }
