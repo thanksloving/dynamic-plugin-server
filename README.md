@@ -49,10 +49,13 @@ if e := dynamicService.Start(lis); e != nil {
 conn, err := grpc.DialContext(context.Background(), ":52051",
 	grpc.WithTransportCredentials(insecure.NewCredentials()),
 )
+// TODO the service descriptors may get from the meta info service, because the client can't invoke the server directly.
 stub := client.NewPluginStub(conn, pluggable.GetServiceDescriptors())
 result, err := stub.Call(context.Background(), pluggable.DefaultNamespace, "SayHello", map[string]any{"name": "plugin"})
 ```
 
 ### TODO
 - [ ] meta info auto-generate support
-- [ ] meta info service
+- [x] meta info service
+- [ ] client use the meta info service to get the service descriptors
+- [ ] benchmark
