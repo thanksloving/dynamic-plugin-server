@@ -2,27 +2,15 @@ package pluggable
 
 import (
 	"fmt"
-	"log"
-	"reflect"
-	"sync"
 
 	"github.com/bytedance/sonic"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/samber/lo"
 	protoV2 "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protodesc"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/known/anypb"
+	"reflect"
 
 	"github.com/thanksloving/dynamic-plugin-server/pb"
-)
-
-var once sync.Once
-
-var (
-	messageTypes []*descriptorpb.DescriptorProto
-	services     []*descriptorpb.ServiceDescriptorProto
 )
 
 type (
@@ -36,32 +24,44 @@ type (
 		Inputs    []Input
 		Outputs   []Output
 	}
+
+	PluginDescriptor struct {
+		p       *pluggableInfo
+		input   *descriptorpb.DescriptorProto
+		output  *descriptorpb.DescriptorProto
+		service *descriptorpb.ServiceDescriptorProto
+	}
 )
 
-// FIXME: 生成服务描述符
-func (m *PluginMeta) parse(input, output reflect.Type) error {
+func (pd *PluginDescriptor) getPluginMeta() *PluginMeta {
+	return pd.p.meta
+}
+
+func (m *PluginMeta) Parse(p *pluggableInfo) (*PluginDescriptor, error) {
 	service := &descriptorpb.ServiceDescriptorProto{
 		Name: protoV2.String(m.Namespace),
 		Method: []*descriptorpb.MethodDescriptorProto{
 			{
 				Name:       protoV2.String(m.Name),
-				InputType:  protoV2.String(fmt.Sprintf(".%s.%s", m.Namespace, input.Name())),
-				OutputType: protoV2.String(fmt.Sprintf(".%s.%s", m.Namespace, output.Name())),
+				InputType:  protoV2.String(fmt.Sprintf(".%s.%s", m.Namespace, p.inputType.Name())),
+				OutputType: protoV2.String(fmt.Sprintf(".%s.%s", m.Namespace, p.outputType.Name())),
 			},
 		},
 	}
-	inputMessage, err := m.resolveType(input, true)
+	inputMessage, err := m.resolveType(p.inputType, true)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	outputMessage, err := m.resolveType(output, false)
+	outputMessage, err := m.resolveType(p.outputType, false)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	messageTypes = append(messageTypes, inputMessage, outputMessage)
-	services = append(services, service)
-	return nil
+	return &PluginDescriptor{
+		p:       p,
+		input:   inputMessage,
+		output:  outputMessage,
+		service: service,
+	}, nil
 }
 
 func (m *PluginMeta) resolveType(t reflect.Type, isInput bool) (*descriptorpb.DescriptorProto, error) {
@@ -124,93 +124,6 @@ func (m *PluginMeta) getFieldType(t reflect.Type) *descriptorpb.FieldDescriptorP
 	}
 }
 
-func GetServices() []protoreflect.ServiceDescriptor {
-	file := &descriptorpb.FileDescriptorProto{
-		Syntax:      protoV2.String("proto3"),
-		Name:        protoV2.String("services.proto"),
-		Package:     protoV2.String(PackageName),
-		MessageType: messageTypes,
-		Service:     services,
-	}
-	fds, _ := protodesc.NewFile(file, nil)
-	var sds []protoreflect.ServiceDescriptor
-	for i := 0; i < fds.Services().Len(); i++ {
-		sds = append(sds, fds.Services().Get(i))
-	}
-	return sds
-}
-
-func GetServiceDescriptors() []protoreflect.ServiceDescriptor {
-	once.Do(func() {
-		// generate service descriptors
-	})
-	// 创建一个文件描述符定义
-	file := &descriptorpb.FileDescriptorProto{
-		Syntax:  protoV2.String("proto3"),
-		Name:    protoV2.String("service.proto"),
-		Package: protoV2.String("plugin_center"),
-		// 描述消息
-		MessageType: []*descriptorpb.DescriptorProto{
-			{
-				Name: protoV2.String("Empty"),
-			},
-			{
-				Name: protoV2.String("HelloRequest"),
-				Field: []*descriptorpb.FieldDescriptorProto{
-					{
-						Name:   protoV2.String("name"),
-						Number: protoV2.Int32(1),
-						Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
-					},
-				},
-			},
-			{
-				Name: protoV2.String("HelloReply"),
-				Field: []*descriptorpb.FieldDescriptorProto{
-					{
-						Name:   protoV2.String("message"),
-						Number: protoV2.Int32(1),
-						Label:  descriptorpb.FieldDescriptorProto_LABEL_OPTIONAL.Enum(),
-						Type:   descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum(),
-					},
-				},
-			},
-		},
-		Service: []*descriptorpb.ServiceDescriptorProto{
-			{
-				Name: protoV2.String(DefaultNamespace),
-				Method: []*descriptorpb.MethodDescriptorProto{
-					{
-						Name:       protoV2.String("SayHello"),
-						InputType:  protoV2.String(".plugin_center.HelloRequest"),
-						OutputType: protoV2.String(".plugin_center.HelloReply"),
-					},
-				},
-			},
-		},
-	}
-
-	fdSet := &descriptorpb.FileDescriptorSet{
-		File: []*descriptorpb.FileDescriptorProto{file},
-	}
-
-	files, err := protodesc.NewFiles(fdSet)
-	if err != nil {
-		log.Fatalf("Failed creating new file descriptor set: %v", err)
-	}
-
-	var sds []protoreflect.ServiceDescriptor
-	files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
-		for i := 0; i < fd.Services().Len(); i++ {
-			sds = append(sds, fd.Services().Get(i))
-		}
-		return true
-	})
-
-	return sds
-}
-
 func (m *PluginMeta) transformInput() []*pb.PluginMeta_Input {
 	return lo.Map[Input, *pb.PluginMeta_Input](m.Inputs, func(item Input, index int) *pb.PluginMeta_Input {
 		return &pb.PluginMeta_Input{
@@ -234,17 +147,4 @@ func (m *PluginMeta) transformOutput() []*pb.PluginMeta_Output {
 			Desc: item.Desc,
 		}
 	})
-}
-
-func convertInterfaceToAny(v interface{}) (*anypb.Any, error) {
-	anyValue := &anypb.Any{}
-	bytes, err := defaultCodec.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	bytesValue := &wrappers.BytesValue{
-		Value: bytes,
-	}
-	err = anypb.MarshalFrom(anyValue, bytesValue, protoV2.MarshalOptions{})
-	return anyValue, err
 }

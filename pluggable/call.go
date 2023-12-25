@@ -19,7 +19,7 @@ type pluggableInfo struct {
 }
 
 func Call(ctx context.Context, namespace, pluginName string, input []byte) ([]byte, error) {
-	plugin := instance.findPlugin(namespace, pluginName)
+	plugin := findPlugin(namespace, pluginName)
 	if plugin == nil {
 		return nil, errors.Errorf("plugin %s:%s not found", namespace, pluginName)
 	}
@@ -71,6 +71,15 @@ func (p *pluggableInfo) run(ctx context.Context, param any, execute func() ([]by
 		_ = defaultCache.Set(context.Background(), cacheKey, result, cacheTime)
 	}()
 	return result, err
+}
+
+func (p *pluggableInfo) apply(instance *registry) error {
+	descriptor, err := p.meta.Parse(p)
+	if err != nil {
+		return err
+	}
+	instance.appendDescriptor(descriptor)
+	return nil
 }
 
 func (p *pluggableInfo) transform() *pb.PluginMeta {
