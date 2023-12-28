@@ -20,7 +20,7 @@ import (
 
 type (
 	Stub interface {
-		Call(ctx context.Context, request *Request) ([]byte, error)
+		Call(ctx context.Context, request Request) ([]byte, error)
 		GetPlugin(ctx context.Context, namespace, pluginName string) (*pluggable.PluginMeta, error)
 		GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error)
 	}
@@ -108,24 +108,18 @@ func (ps *pluginStub) GetPluginMetaList(ctx context.Context, request *pb.MetaReq
 	return resp, err
 }
 
-func (ps *pluginStub) Call(ctx context.Context, request *Request) ([]byte, error) {
+func (ps *pluginStub) Call(ctx context.Context, request Request) ([]byte, error) {
 	ps.lock.RLock()
-	service := ps.services[getKey(request.getNamespace(), request.PluginName)]
+	service := ps.services[getKey(request.GetNamespace(), request.GetPluginName())]
 	ps.lock.RUnlock()
 	if service == nil {
 		return nil, errors.New("service not found")
 	}
 
-	input := dynamicpb.NewMessage(service.Input())
-	fields := service.Input().Fields()
-	for k, v := range request.Data {
-		name := fields.ByName(protoreflect.Name(k))
-		input.Set(name, protoreflect.ValueOf(v))
-	}
-
+	input := request.GetRequestMessage(service.Input())
 	output := dynamicpb.NewMessage(service.Output())
 
-	err := ps.conn.Invoke(ctx, request.getGRpcMethodName(), input, output)
+	err := ps.conn.Invoke(ctx, request.GetGRpcMethodName(), input, output)
 	if err != nil {
 		return nil, errors.Wrap(err, "invoke")
 	}

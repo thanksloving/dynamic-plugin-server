@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
+
 	"github.com/thanksloving/dynamic-plugin-server/pkg/macro"
 )
 
@@ -11,6 +14,11 @@ type (
 	Request interface {
 		WithNamespace(namespace string) Request
 		WithTimeout(timeout time.Duration) Request
+
+		GetNamespace() string
+		GetRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message
+		GetPluginName() string
+		GetGRpcMethodName() string
 	}
 
 	request struct {
@@ -21,6 +29,7 @@ type (
 	}
 )
 
+// NewRequest create a new request, by map[string]any, your can implement your own request to overwrite the GetRequestMessage method
 func NewRequest(pluginName string, data map[string]any) Request {
 	return &request{
 		PluginName: pluginName,
@@ -38,14 +47,28 @@ func (r *request) WithTimeout(timeout time.Duration) Request {
 	return r
 }
 
-func (r *request) getNamespace() string {
+func (r *request) GetNamespace() string {
 	if r.Namespace != nil {
 		return *r.Namespace
 	}
 	return macro.DefaultNamespace
 }
 
-// getGRpcMethodName build grpc method name, eg: /plugin_center.Default/Default.Default.SayHello
-func (r *request) getGRpcMethodName() string {
-	return fmt.Sprintf("/%s.%s/%s.%s.%s", macro.PackageName, r.getNamespace(), r.getNamespace(), r.getNamespace(), r.PluginName)
+func (r *request) GetPluginName() string {
+	return r.PluginName
+}
+
+func (r *request) GetRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message {
+	input := dynamicpb.NewMessage(md)
+	fields := md.Fields()
+	for k, v := range r.Data {
+		name := fields.ByName(protoreflect.Name(k))
+		input.Set(name, protoreflect.ValueOf(v))
+	}
+	return input
+}
+
+// GetGRpcMethodName build grpc method name, eg: /plugin_center.Default/Default.Default.SayHello
+func (r *request) GetGRpcMethodName() string {
+	return fmt.Sprintf("/%s.%s/%s.%s.%s", macro.PackageName, r.GetNamespace(), r.GetNamespace(), r.GetNamespace(), r.PluginName)
 }

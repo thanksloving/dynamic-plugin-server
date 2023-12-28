@@ -54,7 +54,7 @@ stub := client.NewPluginStub(conn)
 // get plugin meta info, it will auto invoke when new plugin stub
 resp, err := ps.GetPluginMetaList(context.Background(), &pb.MetaRequest{})
 
-// call the plugin server by meta info
+// call the plugin server by meta info, the example is by map, you can use any data structure
 request := client.NewRequest("SayHello", map[string]any{"name": "plugin"})
 result, err := stub.Call(context.Background(), request)
 ```
