@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
+	"github.com/thanksloving/dynamic-plugin-server/pkg/server"
 	"net"
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/thanksloving/dynamic-plugin-server/pluggable"
-	_ "github.com/thanksloving/dynamic-plugin-server/repo"
-	"github.com/thanksloving/dynamic-plugin-server/server"
+	_ "github.com/thanksloving/dynamic-plugin-server/repository"
 )
 
 func main() {

@@ -15,12 +15,13 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/thanksloving/dynamic-plugin-server/pb"
-	"github.com/thanksloving/dynamic-plugin-server/pluggable"
+	"github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
 )
 
 type (
 	Stub interface {
-		Call(ctx context.Context, serviceName string, methodName string, input map[string]any) ([]byte, error)
+		Call(ctx context.Context, request *Request) ([]byte, error)
+		GetPlugin(ctx context.Context, namespace, pluginName string) (*pluggable.PluginMeta, error)
 		GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error)
 	}
 
@@ -90,6 +91,11 @@ func (ps *pluginStub) Parse(descriptors []protoreflect.ServiceDescriptor) {
 	}
 }
 
+func (ps *pluginStub) GetPlugin(ctx context.Context, namespace, pluginName string) (*pluggable.PluginMeta, error) {
+	// todo get plugin meta from local cache, if version is not equal to server version, reload
+	return nil, nil
+}
+
 func (ps *pluginStub) GetPluginMetaList(ctx context.Context, request *pb.MetaRequest) (*pb.MetaResponse, error) {
 	resp, err := ps.metaClient.GetPluginMetaList(ctx, request)
 	if err != nil {
@@ -97,14 +103,14 @@ func (ps *pluginStub) GetPluginMetaList(ctx context.Context, request *pb.MetaReq
 	}
 	if resp.Version != ps.version {
 		// need to reload
-		ps.init()
+		ps.reloadAllServices()
 	}
 	return resp, err
 }
 
-func (ps *pluginStub) Call(ctx context.Context, serviceName string, methodName string, data map[string]any) ([]byte, error) {
+func (ps *pluginStub) Call(ctx context.Context, request *Request) ([]byte, error) {
 	ps.lock.RLock()
-	service := ps.services[getKey(serviceName, methodName)]
+	service := ps.services[getKey(request.getNamespace(), request.PluginName)]
 	ps.lock.RUnlock()
 	if service == nil {
 		return nil, errors.New("service not found")
@@ -112,15 +118,14 @@ func (ps *pluginStub) Call(ctx context.Context, serviceName string, methodName s
 
 	input := dynamicpb.NewMessage(service.Input())
 	fields := service.Input().Fields()
-	for k, v := range data {
+	for k, v := range request.Data {
 		name := fields.ByName(protoreflect.Name(k))
 		input.Set(name, protoreflect.ValueOf(v))
 	}
 
 	output := dynamicpb.NewMessage(service.Output())
 
-	method := fmt.Sprintf("/%s.%s/%s.%s.%s", pluggable.PackageName, serviceName, pluggable.DefaultNamespace, serviceName, methodName)
-	err := ps.conn.Invoke(ctx, method, input, output)
+	err := ps.conn.Invoke(ctx, request.getGRpcMethodName(), input, output)
 	if err != nil {
 		return nil, errors.Wrap(err, "invoke")
 	}

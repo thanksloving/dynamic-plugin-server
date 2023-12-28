@@ -1,4 +1,4 @@
-package pluggable
+package macro
 
 const (
 	// PackageName the package name of a gRPC service

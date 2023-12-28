@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	pluggable2 "github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
 	"net"
 	"strings"
 
@@ -15,7 +16,6 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/thanksloving/dynamic-plugin-server/pb"
-	"github.com/thanksloving/dynamic-plugin-server/pluggable"
 )
 
 type (
@@ -99,7 +99,7 @@ func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) erro
 	if err != nil {
 		return nil, err
 	}
-	resp, err := pluggable.Call(ctx, namespace, pluginName, req)
+	resp, err := pluggable2.Call(ctx, namespace, pluginName, req)
 	log.Infof("plugin request: %s, response: %s", string(req), string(resp))
 	if err != nil {
 		return nil, err
@@ -117,5 +117,5 @@ func (ds *dynamicService) GetPluginMetaList(_ context.Context, request *pb.MetaR
 	if request.Name != nil && request.Namespace == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "namespace is required")
 	}
-	return pluggable.GetPluginMetaList(request)
+	return pluggable2.GetPluginMetaList(request)
 }

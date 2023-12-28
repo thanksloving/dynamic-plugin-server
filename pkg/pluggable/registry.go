@@ -3,6 +3,7 @@ package pluggable
 import (
 	"context"
 	"fmt"
+	"github.com/thanksloving/dynamic-plugin-server/pkg/macro"
 	"strings"
 	"sync"
 	"time"
@@ -43,7 +44,7 @@ func Register[I, O any](pluginName string, p Pluggable[I, O], opts ...Option) er
 	defer instance.lock.Unlock()
 
 	meta := &PluginMeta{
-		Namespace: DefaultNamespace,
+		Namespace: macro.DefaultNamespace,
 		Name:      pluginName,
 	}
 	for _, opt := range opts {
@@ -135,7 +136,7 @@ func GetServiceDescriptors() []protoreflect.ServiceDescriptor {
 	file := &descriptorpb.FileDescriptorProto{
 		Syntax:      protoV2.String("proto3"),
 		Name:        protoV2.String("services.proto"),
-		Package:     protoV2.String(PackageName),
+		Package:     protoV2.String(macro.PackageName),
 		MessageType: messageTypes,
 		Service:     services,
 	}

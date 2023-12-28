@@ -55,12 +55,14 @@ stub := client.NewPluginStub(conn)
 resp, err := ps.GetPluginMetaList(context.Background(), &pb.MetaRequest{})
 
 // call the plugin server by meta info
-result, err := stub.Call(context.Background(), pluggable.DefaultNamespace, "SayHello", map[string]any{"name": "plugin"})
+request := client.NewRequest("SayHello", map[string]any{"name": "plugin"})
+result, err := stub.Call(context.Background(), request)
 ```
 
 ### TODO
-- [ ] meta info auto-generate support
 - [x] meta info service
+- [ ] meta info auto-generate support
 - [ ] parse meta info from the plugin
+- [ ] client query plugin meta info by cache or server
 - [ ] version control
 - [ ] benchmark

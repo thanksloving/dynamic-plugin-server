@@ -2,7 +2,6 @@ package pluggable
 
 import (
 	"fmt"
-
 	"github.com/bytedance/sonic"
 	"github.com/samber/lo"
 	protoV2 "google.golang.org/protobuf/proto"

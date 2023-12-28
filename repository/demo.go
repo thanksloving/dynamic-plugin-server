@@ -1,10 +1,9 @@
-package repo
+package repository
 
 import (
 	"context"
 	"fmt"
-
-	"github.com/thanksloving/dynamic-plugin-server/pluggable"
+	"github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
 )
 
 var _ pluggable.Pluggable[*DemoParameter, *DemoResult] = &Demo{}
