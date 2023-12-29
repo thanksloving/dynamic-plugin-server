@@ -22,6 +22,7 @@ type (
 )
 
 func (d *Demo) Execute(_ context.Context, param *DemoParameter) (*DemoResult, error) {
+	// your business logic
 	return &DemoResult{
 		Message: fmt.Sprintf("hello %s", param.Name),
 	}, nil

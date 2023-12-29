@@ -33,7 +33,7 @@ err := pluggable.Register[*DemoParameter, *DemoResult]("SayHello", &Demo{})
 
 3. Start the gRPC server.
 ```
-dynamicService := server.NewDynamicService(pluggable.GetServiceDescriptors())
+dynamicService := server.NewDynamicService()
 lis, err := net.Listen("tcp", ":52051")
 if err != nil {
 	panic(err)

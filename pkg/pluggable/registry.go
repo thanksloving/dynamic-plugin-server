@@ -125,8 +125,8 @@ func findPlugin(namespace, pluginName string) *pluggableInfo {
 	return instance.store[key]
 }
 
-// GetServiceDescriptors get all service descriptors
-func GetServiceDescriptors() []protoreflect.ServiceDescriptor {
+// GetRegistryServiceDescriptors get all service descriptors
+func GetRegistryServiceDescriptors() []protoreflect.ServiceDescriptor {
 	var messageTypes []*descriptorpb.DescriptorProto
 	var services []*descriptorpb.ServiceDescriptorProto
 	for _, pluginDescriptor := range instance.pluginDescriptors {

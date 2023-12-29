@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	pluggable2 "github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
 	"net"
 	"strings"
 
@@ -16,6 +15,8 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/thanksloving/dynamic-plugin-server/pb"
+	"github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
+	_ "github.com/thanksloving/dynamic-plugin-server/repository"
 )
 
 type (
@@ -30,14 +31,14 @@ type (
 	}
 )
 
-func NewDynamicService(fileDescriptions []protoreflect.ServiceDescriptor, options ...grpc.ServerOption) DynamicService {
+func NewDynamicService(options ...grpc.ServerOption) DynamicService {
 	ds := &dynamicService{
 		methods: make(map[string]protoreflect.MethodDescriptor),
 	}
 
 	server := grpc.NewServer(options...)
 
-	descList := ds.resolveServices(fileDescriptions)
+	descList := ds.resolveServices(pluggable.GetRegistryServiceDescriptors())
 	for _, serviceDesc := range descList {
 		server.RegisterService(serviceDesc, ds)
 	}
@@ -99,7 +100,7 @@ func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) erro
 	if err != nil {
 		return nil, err
 	}
-	resp, err := pluggable2.Call(ctx, namespace, pluginName, req)
+	resp, err := pluggable.Call(ctx, namespace, pluginName, req)
 	log.Infof("plugin request: %s, response: %s", string(req), string(resp))
 	if err != nil {
 		return nil, err
@@ -117,5 +118,5 @@ func (ds *dynamicService) GetPluginMetaList(_ context.Context, request *pb.MetaR
 	if request.Name != nil && request.Namespace == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "namespace is required")
 	}
-	return pluggable2.GetPluginMetaList(request)
+	return pluggable.GetPluginMetaList(request)
 }
