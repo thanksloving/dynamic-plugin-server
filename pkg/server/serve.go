@@ -4,13 +4,10 @@ import (
 	"context"
 	"net"
 
-	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/thanksloving/dynamic-plugin-server/pb"
 	"github.com/thanksloving/dynamic-plugin-server/pkg/pluggable"
@@ -45,34 +42,6 @@ func NewDynamicService(options ...grpc.ServerOption) DynamicService {
 
 func (ds *dynamicService) Start(listener net.Listener) error {
 	return ds.server.Serve(listener)
-}
-
-func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
-	method, namespace, pluginName, err := ds.router.GetMethodDesc(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	input := dynamicpb.NewMessage(method.Input())
-	if err := dec(input); err != nil {
-		return nil, err
-	}
-
-	req, err := protojson.Marshal(input)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := pluggable.Call(ctx, namespace, pluginName, req)
-	log.Infof("plugin request: %s, response: %s", string(req), string(resp))
-	if err != nil {
-		return nil, err
-	}
-	output := dynamicpb.NewMessage(method.Output())
-	if err := protojson.Unmarshal(resp, output); err != nil {
-		return nil, err
-	}
-
-	return output, nil
 }
 
 // GetPluginMetaList get plugin meta list
