@@ -15,10 +15,13 @@ type (
 		WithNamespace(namespace string) Request
 		WithTimeout(timeout time.Duration) Request
 
-		GetNamespace() string
-		GetRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message
 		GetPluginName() string
+		GetNamespace() string
+		GetTimeout() *time.Duration
 		GetGRpcMethodName() string
+
+		// AssembleRequestMessage assemble request message by request data
+		AssembleRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message
 	}
 
 	request struct {
@@ -47,6 +50,10 @@ func (r *request) WithTimeout(timeout time.Duration) Request {
 	return r
 }
 
+func (r *request) GetTimeout() *time.Duration {
+	return r.Timeout
+}
+
 func (r *request) GetNamespace() string {
 	if r.Namespace != nil {
 		return *r.Namespace
@@ -58,7 +65,7 @@ func (r *request) GetPluginName() string {
 	return r.PluginName
 }
 
-func (r *request) GetRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message {
+func (r *request) AssembleRequestMessage(md protoreflect.MessageDescriptor) *dynamicpb.Message {
 	input := dynamicpb.NewMessage(md)
 	fields := md.Fields()
 	for k, v := range r.Data {

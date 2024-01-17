@@ -19,7 +19,6 @@ import (
 
 type (
 	dynamicService struct {
-		router Router
 		server *grpc.Server
 		pb.MetaServiceServer
 	}
@@ -29,12 +28,21 @@ type (
 	}
 )
 
+var defaultRouter Router
+
+func init() {
+	defaultRouter = newServiceRouter(pluggable.GetRegistryServiceDescriptors())
+}
+
+func SetServiceRouter(router Router) {
+	defaultRouter = router
+}
+
 func NewDynamicService(options ...grpc.ServerOption) DynamicService {
 	ds := &dynamicService{
-		router: newServiceRouter(pluggable.GetRegistryServiceDescriptors()),
 		server: grpc.NewServer(options...),
 	}
-	for _, serviceDesc := range ds.router.GetServiceDescList() {
+	for _, serviceDesc := range defaultRouter.GetServiceDescList() {
 		for _, method := range serviceDesc.Methods {
 			method.Handler = ds.handler
 		}
@@ -59,10 +67,12 @@ func (ds *dynamicService) GetPluginMetaList(_ context.Context, request *pb.MetaR
 }
 
 func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (interface{}, error) {
-	method, namespace, pluginName, err := ds.router.GetMethodDesc(ctx)
+	pluginService, err := defaultRouter.GetMethodDesc(ctx)
 	if err != nil {
 		return nil, err
 	}
+
+	method := pluginService.Method
 
 	input := dynamicpb.NewMessage(method.Input())
 	if err := dec(input); err != nil {
@@ -73,7 +83,7 @@ func (ds *dynamicService) handler(_ any, ctx context.Context, dec func(any) erro
 	if err != nil {
 		return nil, err
 	}
-	resp, err := pluggable.Call(ctx, namespace, pluginName, req)
+	resp, err := pluggable.Call(ctx, pluginService.ServiceName, pluginService.PluginName, req)
 	log.Infof("plugin request: %s, response: %s", string(req), string(resp))
 	if err != nil {
 		return nil, err

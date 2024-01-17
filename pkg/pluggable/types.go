@@ -18,7 +18,8 @@ type (
 	Input struct {
 		Item
 		Optional bool
-		Options  []any
+		// list the options of the value if the value is limited
+		Options []any
 	}
 
 	Output struct {
